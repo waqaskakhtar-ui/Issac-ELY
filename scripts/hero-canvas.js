@@ -18,6 +18,7 @@ export class HeroCanvasAnimation {
 
     this.ctx = this.canvas ? this.canvas.getContext('2d') : null;
     this.totalFrames = 151;
+    this.startFrame = options.startFrame !== undefined ? options.startFrame : 20;
     this.images = [];
     this.loadedImagesCount = 0;
     this.isReady = false;
@@ -57,8 +58,9 @@ export class HeroCanvasAnimation {
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     // Re-draw current frame if available
-    if (this.isReady && this.lastRenderedFrame >= 0) {
-      this.drawFrame(this.lastRenderedFrame);
+    if (this.isReady) {
+      const frameToDraw = this.lastRenderedFrame >= 0 ? this.lastRenderedFrame : this.startFrame;
+      this.drawFrame(frameToDraw);
     }
   }
 
@@ -73,7 +75,8 @@ export class HeroCanvasAnimation {
       if (unlocked) return;
       unlocked = true;
       this.isReady = true;
-      this.drawFrame(0);
+      this.drawFrame(this.startFrame);
+      this.lastRenderedFrame = this.startFrame;
 
       if (this.preloader) {
         this.preloader.classList.add('preloader--hidden');
@@ -100,8 +103,8 @@ export class HeroCanvasAnimation {
         this.preloaderText.textContent = `${pct}%`;
       }
 
-      // Fast progressive unlock once first 12 frames are ready
-      if (loaded >= 12 && !unlocked) {
+      // Fast progressive unlock once start frame and initial buffer are ready
+      if (this.images[this.startFrame]?.complete && loaded >= 12 && !unlocked) {
         unlockPage();
       }
 
@@ -118,14 +121,21 @@ export class HeroCanvasAnimation {
         console.warn(`Frame ${i} failed to load, substituting`);
         onFrameLoad();
       };
-      img.src = `${frameBase}${pad(i)}.jpg`;
       this.images.push(img);
+    }
+
+    // Prioritize loading starting frame first for instant paint
+    this.images[this.startFrame].src = `${frameBase}${pad(this.startFrame)}.jpg`;
+    for (let i = 0; i < this.totalFrames; i++) {
+      if (i !== this.startFrame) {
+        this.images[i].src = `${frameBase}${pad(i)}.jpg`;
+      }
     }
   }
 
   onAllFramesLoaded() {
     this.isReady = true;
-    this.drawFrame(0);
+    this.drawFrame(this.startFrame);
 
     // Smoothly reveal the page
     setTimeout(() => {
@@ -176,15 +186,16 @@ export class HeroCanvasAnimation {
       this.currentProgress += (this.targetProgress - this.currentProgress) * lerpSpeed;
 
       // Frame mapping:
-      // 0% -> Frame 0 (disassembled)
-      // 0% - 85% -> Frames 0 to 150 (stitching & assembly)
+      // 0% -> Frame startFrame (e.g. 20)
+      // 0% - 85% -> Frames startFrame to 150 (stitching & assembly)
       // 85% - 100% -> Frame 150 held for the dramatic final reveal
-      let frameIndex = 0;
+      const endFrame = this.totalFrames - 1;
+      let frameIndex = this.startFrame;
       if (this.currentProgress < 0.85) {
         const assemblyProgress = this.currentProgress / 0.85;
-        frameIndex = Math.min(this.totalFrames - 1, Math.floor(assemblyProgress * (this.totalFrames - 1)));
+        frameIndex = Math.min(endFrame, Math.floor(this.startFrame + assemblyProgress * (endFrame - this.startFrame)));
       } else {
-        frameIndex = this.totalFrames - 1;
+        frameIndex = endFrame;
       }
 
       if (frameIndex !== this.lastRenderedFrame && this.images[frameIndex]?.complete) {

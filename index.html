@@ -1405,8 +1405,8 @@
     import { EditorialScrollController } from './scripts/editorial-scroll.js';
 
     document.addEventListener('DOMContentLoaded', () => {
-      // 1. Initialize Hero Frame-by-Frame Canvas Engine
-      const heroCanvas = new HeroCanvasAnimation();
+      // 1. Initialize Hero Frame-by-Frame Canvas Engine (Starts at Frame 20)
+      const heroCanvas = new HeroCanvasAnimation({ startFrame: 20 });
 
       // 2. Initialize Navigation & Mega-Menus
       const navigation = new NavigationController();
